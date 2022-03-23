@@ -1,0 +1,7 @@
+/.terraform
+*.hcl
+*.tfstate
+*.tfstate.backup
+/linux_amd64
+/scrap
+.env

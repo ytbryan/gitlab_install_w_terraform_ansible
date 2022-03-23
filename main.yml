@@ -1,0 +1,49 @@
+# mac fixes for sshpass https://stackoverflow.com/a/62623099
+# brew install hudochenkov/sshpass/sshpass
+
+---
+  - hosts: all
+    become: True
+    vars:
+      fqdn_file: ./fqdn
+      var_fqdn: "{{ lookup('file', fqdn_file).splitlines() }}"
+    tasks:
+      - name: bitnami
+        block:
+          - name: search username and password
+            wait_for:
+              path: /home/bitnami/bitnami_credentials
+              search_regex: ('((?:''|[^'])*)' and '((?:''|[^'])*)')
+            register: output_bitnami
+          - name: display username and password
+            debug:
+              msg: "{{ output_bitnami['match_groups'][0] }}"
+        rescue:
+          - debug:
+              msg: "bitnami - rescue"
+        always:
+          - debug:
+              msg: "bitnami - always"
+      - name: gitlab
+        block:
+          - name: clear gitlab.rb
+            lineinfile:
+              path: /etc/gitlab/gitlab.rb
+              regexp: ".*"
+              state: absent
+          - name: append external url to gitlab.rb
+            lineinfile:
+              path: /etc/gitlab/gitlab.rb
+              line: "external_url 'https://{{ var_fqdn[0] }}'"
+          - name: append letsencrypt to gitlab.rb
+            lineinfile:
+              path: /etc/gitlab/gitlab.rb
+              line: "letsencrypt['enable'] = true"
+          - name: reconfigure gitlab
+            shell: gitlab-ctl reconfigure
+        rescue:
+          - debug:
+              msg: "gitlab - rescue"
+        always:
+          - debug:
+              msg: "gitlab - always"
